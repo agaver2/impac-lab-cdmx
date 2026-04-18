@@ -1,4 +1,9 @@
 import { airQualityNow, crimeHotspots } from "../cdmx/ckan";
+import {
+  FGJ_ALCALDIAS_TOTAL,
+  fgjFallback,
+  simatFallback,
+} from "../cdmx/ckan-fallback";
 import { denueSearchNear, summarizeDenue, type DenueUnit } from "../cdmx/denue";
 import {
   clamp,
@@ -217,14 +222,39 @@ export async function computeZoneScore(opts: {
           ? crimeRes.reason.message
           : String(crimeRes.reason)
         : "CKAN devolvió 0 filas";
-    subscores.push({
-      key: "security",
-      label: "Seguridad",
-      value: 50,
-      reason: `FGJ no disponible: ${errMsg.slice(0, 120)}`,
-      signal: null,
-      available: false,
-    });
+    // Fallback to pinned 2024 counts per alcaldía so the score stays meaningful
+    // when datos.cdmx.gob.mx is unreachable from the runtime.
+    const fb = fgjFallback(normAlc);
+    if (fb) {
+      sourcesAvailable++;
+      crimeCount = fb.count;
+      crimeRank = fb.rank;
+      crimeTotal = FGJ_ALCALDIAS_TOTAL;
+      const value = clamp(100 - ((FGJ_ALCALDIAS_TOTAL - fb.rank + 1) / FGJ_ALCALDIAS_TOTAL) * 100);
+      subscores.push({
+        key: "security",
+        label: "Seguridad",
+        value,
+        reason: `${fb.count.toLocaleString("es-MX")} carpetas FGJ en 2024 — posición ${fb.rank} de ${FGJ_ALCALDIAS_TOTAL} alcaldías (dato precalculado).`,
+        signal: fb.count,
+        available: true,
+      });
+      reasons.push(
+        value >= 65
+          ? `Seguridad relativa buena: alcaldía con menor incidencia que la mayoría (${fb.count.toLocaleString("es-MX")} carpetas).`
+          : `Incidencia delictiva alta: ${fb.count.toLocaleString("es-MX")} carpetas FGJ en 2024 (posición ${fb.rank}/${FGJ_ALCALDIAS_TOTAL}).`,
+      );
+      freshnessDays = 365;
+    } else {
+      subscores.push({
+        key: "security",
+        label: "Seguridad",
+        value: 50,
+        reason: `FGJ no disponible: ${errMsg.slice(0, 120)}`,
+        signal: null,
+        available: false,
+      });
+    }
   }
 
   // --- Commerce (DENUE density) ---
@@ -323,14 +353,32 @@ export async function computeZoneScore(opts: {
           ? airRes.reason.message
           : String(airRes.reason)
         : "SIMAT devolvió 0 filas";
-    subscores.push({
-      key: "air",
-      label: "Calidad del aire",
-      value: 50,
-      reason: `SIMAT no disponible: ${errMsg.slice(0, 120)}`,
-      signal: null,
-      available: false,
-    });
+    // Fall back to pinned latest PM10 per zone when SIMAT is unreachable.
+    const fb = simatFallback(zoneAir ?? "CENTRO");
+    if (fb) {
+      sourcesAvailable++;
+      pm25 = fb.pm10;
+      const value = clamp(100 - Math.max(0, fb.pm10 - 30) * 1.2);
+      subscores.push({
+        key: "air",
+        label: "Calidad del aire",
+        value,
+        reason: `Zona ${fb.zona} (SIMAT): PM10 ${fb.pm10} µg/m³ (dato precalculado).`,
+        signal: fb.pm10,
+        available: true,
+      });
+      if (value < 45) reasons.push(`Calidad del aire deteriorada en zona ${fb.zona}.`);
+      if (freshnessDays === null) freshnessDays = daysSince(fb.Fecha);
+    } else {
+      subscores.push({
+        key: "air",
+        label: "Calidad del aire",
+        value: 50,
+        reason: `SIMAT no disponible: ${errMsg.slice(0, 120)}`,
+        signal: null,
+        available: false,
+      });
+    }
   }
 
   // --- Mobility (proxy: DENUE transport units nearby) ---
