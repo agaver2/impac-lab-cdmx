@@ -126,8 +126,8 @@ export default function Home() {
     <main className="flex-1 mx-auto w-full max-w-5xl px-5 py-10 md:py-16">
       <motion.header layout className={result ? "mb-8" : "mb-14 text-center"}>
         <motion.div layout className="flex items-center gap-2 justify-center">
-          <div className="size-2 rounded-full bg-cyan-400 shadow-[0_0_12px_#22D3EE]" />
-          <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-cyan-300">
+          <div className="size-2 rounded-full bg-cyan-600 shadow-[0_0_10px_rgba(8,145,178,0.55)]" />
+          <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-cyan-700">
             ZonaMatch · CDMX
           </div>
         </motion.div>
@@ -135,10 +135,11 @@ export default function Home() {
           <motion.h1
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-5 text-4xl md:text-6xl font-semibold tracking-tight leading-[1.05]"
+            className="mt-5 text-4xl md:text-6xl font-semibold tracking-tight leading-[1.05] text-slate-900"
           >
-            Decide dónde <span className="text-cyan-300">vivir</span> o{" "}
-            <span className="text-pink-400">abrir negocio</span> con datos del gobierno.
+            Decide dónde <span className="text-cyan-700">vivir</span> o{" "}
+            <span className="text-rose-600">abrir negocio</span> con datos del
+            gobierno.
           </motion.h1>
         )}
         {!result && (
@@ -146,10 +147,10 @@ export default function Home() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.15 }}
-            className="mt-4 text-zinc-400 max-w-xl mx-auto"
+            className="mt-4 text-slate-600 max-w-xl mx-auto"
           >
-            Pega una dirección, colonia, coordenadas o un link de Google Maps. ZonaMatch
-            calcula un score y te explica por qué, en lenguaje natural.
+            Pega una dirección, colonia, coordenadas o un link de Google Maps.
+            ZonaMatch calcula un score y te explica por qué, en lenguaje natural.
           </motion.p>
         )}
       </motion.header>
@@ -158,18 +159,18 @@ export default function Home() {
         layout
         onSubmit={onSubmit}
         className={`card p-3 md:p-4 flex flex-col gap-3 ${
-          result ? "" : "shadow-2xl shadow-cyan-500/5"
+          result ? "" : "shadow-xl shadow-cyan-500/5"
         }`}
       >
         <div className="flex items-center gap-2">
-          <div className="flex rounded-full bg-white/5 p-1 text-sm">
+          <div className="flex rounded-full bg-slate-100 p-1 text-sm border border-slate-200">
             <button
               type="button"
               onClick={() => setMode("live")}
-              className={`px-4 py-1.5 rounded-full transition-colors ${
+              className={`px-4 py-1.5 rounded-full transition-colors font-medium ${
                 mode === "live"
-                  ? "bg-cyan-400/20 text-cyan-200"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-white text-cyan-700 shadow-sm"
+                  : "text-slate-500 hover:text-slate-800"
               }`}
             >
               Vivir aquí
@@ -177,16 +178,16 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setMode("business")}
-              className={`px-4 py-1.5 rounded-full transition-colors ${
+              className={`px-4 py-1.5 rounded-full transition-colors font-medium ${
                 mode === "business"
-                  ? "bg-pink-400/20 text-pink-200"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-white text-rose-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-800"
               }`}
             >
               Abrir negocio
             </button>
           </div>
-          <div className="ml-auto text-[11px] font-mono uppercase tracking-widest text-zinc-500 hidden md:block">
+          <div className="ml-auto text-[11px] font-mono uppercase tracking-widest text-slate-400 hidden md:block">
             FGJ · SIMAT · DENUE · Tavily
           </div>
         </div>
@@ -195,18 +196,18 @@ export default function Home() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Ej: Reforma 222 CDMX, 19.4155,-99.1625, o link de Google Maps"
-            className="flex-1 bg-transparent text-lg px-3 py-3 outline-none placeholder:text-zinc-600"
+            className="flex-1 bg-transparent text-lg px-3 py-3 outline-none placeholder:text-slate-400 text-slate-900"
           />
           <button
             type="submit"
             disabled={loading || !query.trim()}
-            className="px-5 rounded-xl font-medium bg-cyan-400 text-zinc-950 hover:bg-cyan-300 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            className="px-5 rounded-xl font-medium bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
           >
             {loading ? "Escaneando…" : "Analizar"}
           </button>
         </div>
         <div className="flex flex-wrap items-center gap-2 pt-1">
-          <span className="text-xs text-zinc-500 font-mono uppercase tracking-widest mr-1">
+          <span className="text-xs text-slate-400 font-mono uppercase tracking-widest mr-1">
             Ejemplos:
           </span>
           {DEMO_COLONIES.map((c) => (
@@ -215,16 +216,17 @@ export default function Home() {
               type="button"
               onClick={() => runDemo(c.id)}
               disabled={loading}
-              className="text-xs px-3 py-1.5 rounded-full bg-white/5 text-zinc-300 hover:bg-white/10 transition disabled:opacity-40"
+              className="text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition disabled:opacity-40 border border-slate-200"
             >
-              {c.label} <span className="text-zinc-500">· {c.sub}</span>
+              <span className="font-medium">{c.label}</span>{" "}
+              <span className="text-slate-500">· {c.sub}</span>
             </button>
           ))}
         </div>
       </motion.form>
 
       {error && (
-        <div className="mt-4 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-200 text-sm">
+        <div className="mt-4 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm">
           {error}
         </div>
       )}
@@ -243,10 +245,10 @@ export default function Home() {
               <div className="halo-ring delay-1" />
               <div className="halo-ring delay-2" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="size-3 rounded-full bg-cyan-400 shadow-[0_0_16px_#22D3EE]" />
+                <div className="size-3 rounded-full bg-cyan-600 shadow-[0_0_14px_rgba(8,145,178,0.6)]" />
               </div>
             </div>
-            <div className="text-zinc-400 text-sm font-mono uppercase tracking-widest">
+            <div className="text-slate-500 text-sm font-mono uppercase tracking-widest">
               Consultando CKAN · DENUE · SIMAT · Tavily
             </div>
             <div className="h-1 w-48 rounded scan-loader" />
@@ -281,7 +283,7 @@ export default function Home() {
           </div>
 
           <div className="card-soft p-5">
-            <div className="text-xs font-mono uppercase tracking-widest text-zinc-500 mb-4">
+            <div className="text-xs font-mono uppercase tracking-widest text-slate-500 mb-4">
               Subscores
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -290,7 +292,9 @@ export default function Home() {
                   key={s.key}
                   value={s.value}
                   label={s.label}
-                  sublabel={s.reason.slice(0, 55) + (s.reason.length > 55 ? "…" : "")}
+                  sublabel={
+                    s.reason.slice(0, 55) + (s.reason.length > 55 ? "…" : "")
+                  }
                   available={s.available}
                 />
               ))}
@@ -304,17 +308,17 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="card p-5 bg-gradient-to-br from-pink-500/10 to-transparent border-pink-500/30"
+              className="card p-5 bg-gradient-to-br from-rose-50 to-transparent border-rose-200"
             >
-              <div className="text-xs font-mono uppercase tracking-widest text-pink-300 mb-2">
+              <div className="text-xs font-mono uppercase tracking-widest text-rose-600 mb-2">
                 Sugerencia de giro
               </div>
-              <div className="text-xl font-semibold text-zinc-100">
+              <div className="text-xl font-semibold text-slate-900">
                 {result.score.raw.bestBusinessType}
               </div>
-              <div className="text-sm text-zinc-400 mt-1">
-                Inferido de la distribución DENUE en 500m — menor saturación directa con
-                soporte comercial cercano.
+              <div className="text-sm text-slate-600 mt-1">
+                Inferido de la distribución DENUE en 500m — menor saturación
+                directa con soporte comercial cercano.
               </div>
             </motion.div>
           )}
@@ -333,10 +337,10 @@ export default function Home() {
           <div className="card p-5">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
-                <div className="text-xs font-mono uppercase tracking-widest text-zinc-500">
+                <div className="text-xs font-mono uppercase tracking-widest text-slate-500">
                   Comparar con otra zona
                 </div>
-                <div className="text-sm text-zinc-400 mt-1">
+                <div className="text-sm text-slate-600 mt-1">
                   Un clic contra una colonia de referencia.
                 </div>
               </div>
@@ -351,7 +355,7 @@ export default function Home() {
                     key={c.id}
                     onClick={() => runCompare(c.id)}
                     disabled={comparing}
-                    className="text-xs px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-zinc-200 transition disabled:opacity-40"
+                    className="text-xs px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 transition disabled:opacity-40 border border-slate-200"
                   >
                     vs {c.label}
                   </button>
@@ -388,7 +392,7 @@ export default function Home() {
                 setCompareResult(null);
                 setQuery("");
               }}
-              className="text-xs font-mono uppercase tracking-widest text-zinc-500 hover:text-zinc-200"
+              className="text-xs font-mono uppercase tracking-widest text-slate-500 hover:text-cyan-700"
             >
               ← Analizar otra zona
             </button>
@@ -401,13 +405,13 @@ export default function Home() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="mt-16 text-center text-xs text-zinc-500 space-y-2"
+          className="mt-16 text-center text-xs text-slate-500 space-y-2"
         >
           <div>
-            Datos abiertos: CKAN CDMX · SIMAT · INEGI DENUE. Señales de mercado via
-            Tavily. Narrativa generada con Claude Sonnet 4.6.
+            Datos abiertos: CKAN CDMX · SIMAT · INEGI DENUE. Señales de mercado
+            vía Tavily. Narrativa generada con Claude Sonnet 4.6.
           </div>
-          <div className="font-mono uppercase tracking-widest">
+          <div className="font-mono uppercase tracking-widest text-slate-400">
             Claude Impact Lab CDMX · Abril 2026
           </div>
         </motion.footer>

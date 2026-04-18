@@ -25,13 +25,13 @@ export default function RadialGauge({
   const dashOffset = circ - (pct / 100) * circ;
   const color = available
     ? pct >= 75
-      ? "#84CC16"
+      ? "#15803D" // green-700
       : pct >= 55
-      ? "#22D3EE"
+      ? "#0E7490" // cyan-700
       : pct >= 40
-      ? "#F59E0B"
-      : "#FB7185"
-    : "#52525B";
+      ? "#B45309" // amber-700
+      : "#BE123C" // rose-700
+    : "#94A3B8";  // slate-400
 
   useEffect(() => {
     let raf: number;
@@ -56,7 +56,7 @@ export default function RadialGauge({
             cy={size / 2}
             r={radius}
             fill="none"
-            stroke="rgba(255,255,255,0.06)"
+            stroke="rgba(15, 23, 42, 0.08)"
             strokeWidth={9}
           />
           <motion.circle
@@ -74,23 +74,26 @@ export default function RadialGauge({
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className="text-2xl font-semibold tracking-tight" style={{ color }}>
+          <div
+            className="text-2xl font-semibold tracking-tight"
+            style={{ color }}
+          >
             {available ? display : "—"}
           </div>
           {available ? (
-            <div className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">
+            <div className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">
               /100
             </div>
           ) : (
-            <div className="text-[10px] text-zinc-500 uppercase tracking-wider">
+            <div className="text-[10px] text-slate-400 uppercase tracking-wider">
               s/d
             </div>
           )}
         </div>
       </div>
       <div className="text-center">
-        <div className="text-sm font-medium text-zinc-200">{label}</div>
-        {sublabel && <div className="text-xs text-zinc-500 mt-0.5">{sublabel}</div>}
+        <div className="text-sm font-medium text-slate-800">{label}</div>
+        {sublabel && <div className="text-xs text-slate-500 mt-0.5">{sublabel}</div>}
       </div>
     </div>
   );

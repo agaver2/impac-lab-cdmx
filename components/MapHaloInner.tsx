@@ -12,7 +12,7 @@ type Props = {
 
 export default function MapHaloInner({ lat, lng, radiusM = 500 }: Props) {
   return (
-    <div className="rounded-2xl overflow-hidden border border-white/10 h-[320px] relative">
+    <div className="rounded-2xl overflow-hidden border border-slate-200 h-[320px] relative shadow-sm">
       <MapContainer
         center={[lat, lng]}
         zoom={15}
@@ -21,26 +21,26 @@ export default function MapHaloInner({ lat, lng, radiusM = 500 }: Props) {
         attributionControl={true}
       >
         <TileLayer
-          url="https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png"
+          url="https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
         />
         <Circle
           center={[lat, lng]}
           radius={radiusM}
           pathOptions={{
-            color: "#22D3EE",
-            weight: 1.5,
-            fillColor: "#22D3EE",
-            fillOpacity: 0.08,
+            color: "#0891B2",
+            weight: 2,
+            fillColor: "#0891B2",
+            fillOpacity: 0.10,
           }}
         />
         <CircleMarker
           center={[lat, lng]}
           radius={7}
           pathOptions={{
-            color: "#22D3EE",
+            color: "#FFFFFF",
             weight: 2,
-            fillColor: "#22D3EE",
+            fillColor: "#0891B2",
             fillOpacity: 1,
           }}
         />
