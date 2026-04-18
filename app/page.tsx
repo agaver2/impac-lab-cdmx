@@ -69,6 +69,8 @@ export default function Home() {
 
   const [compareResult, setCompareResult] = useState<ScoreResponse | null>(null);
   const [comparing, setComparing] = useState(false);
+  const [compareQuery, setCompareQuery] = useState("");
+  const [compareError, setCompareError] = useState<string | null>(null);
 
   async function runScore(body: { query?: string; demoId?: string }) {
     setLoading(true);
@@ -104,22 +106,32 @@ export default function Home() {
     runScore({ demoId: id });
   }
 
-  async function runCompare(demoId: string) {
+  async function runCompare(body: { query?: string; demoId?: string }) {
     setComparing(true);
+    setCompareError(null);
     try {
       const res = await fetch("/api/score", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ demoId, mode }),
+        body: JSON.stringify({ ...body, mode }),
       });
-      if (!res.ok) throw new Error("compare failed");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "error" }));
+        throw new Error(err.error ?? `HTTP ${res.status}`);
+      }
       const data: ScoreResponse = await res.json();
       setCompareResult(data);
     } catch (e) {
-      console.error(e);
+      setCompareError(e instanceof Error ? e.message : "No se pudo comparar");
     } finally {
       setComparing(false);
     }
+  }
+
+  async function onCompareSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!compareQuery.trim()) return;
+    runCompare({ query: compareQuery.trim() });
   }
 
   return (
@@ -341,7 +353,7 @@ export default function Home() {
                   Comparar con otra zona
                 </div>
                 <div className="text-sm text-slate-600 mt-1">
-                  Un clic contra una colonia de referencia.
+                  Un clic contra una colonia de referencia, o ingresa otra.
                 </div>
               </div>
               <div className="flex gap-2 flex-wrap">
@@ -353,7 +365,7 @@ export default function Home() {
                 ).map((c) => (
                   <button
                     key={c.id}
-                    onClick={() => runCompare(c.id)}
+                    onClick={() => runCompare({ demoId: c.id })}
                     disabled={comparing}
                     className="text-xs px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 transition disabled:opacity-40 border border-slate-200"
                   >
@@ -362,6 +374,29 @@ export default function Home() {
                 ))}
               </div>
             </div>
+            <form
+              onSubmit={onCompareSubmit}
+              className="mt-4 flex gap-2 items-center"
+            >
+              <input
+                value={compareQuery}
+                onChange={(e) => setCompareQuery(e.target.value)}
+                placeholder="Ej: Condesa, Del Valle, Santa Fe, o una dirección…"
+                className="flex-1 text-sm px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:border-cyan-500 focus:bg-white text-slate-900 placeholder:text-slate-400 transition"
+              />
+              <button
+                type="submit"
+                disabled={comparing || !compareQuery.trim()}
+                className="text-xs px-4 py-2 rounded-xl font-medium bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                {comparing ? "Comparando…" : "Comparar"}
+              </button>
+            </form>
+            {compareError && (
+              <div className="mt-3 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+                {compareError}
+              </div>
+            )}
             {comparing && <div className="mt-4 h-1 w-full rounded scan-loader" />}
             {compareResult && (
               <div className="mt-5">
@@ -390,6 +425,8 @@ export default function Home() {
               onClick={() => {
                 setResult(null);
                 setCompareResult(null);
+                setCompareQuery("");
+                setCompareError(null);
                 setQuery("");
               }}
               className="text-xs font-mono uppercase tracking-widest text-slate-500 hover:text-cyan-700"
