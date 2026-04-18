@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ZoneScoreResult } from "./zone-score";
 import type { MarketSignals } from "../cdmx/tavily";
+import { env } from "../env";
 
 const MODEL = "claude-sonnet-4-6";
 
@@ -32,8 +33,11 @@ export async function generateNarrative(opts: {
   locationLabel: string;
   market?: MarketSignals;
 }): Promise<string> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return fallbackNarrative(opts);
+  const key = env("ANTHROPIC_API_KEY");
+  if (!key) {
+    console.warn("[narrative] ANTHROPIC_API_KEY missing — using fallback narrative");
+    return fallbackNarrative(opts);
+  }
   const client = new Anthropic({ apiKey: key });
 
   const marketBlurb =

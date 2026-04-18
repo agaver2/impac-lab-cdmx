@@ -1,4 +1,5 @@
 import { cached } from "./cache";
+import { matchKnownAlcaldia } from "./geo";
 
 const PLACES_BASE = "https://places.googleapis.com/v1/places:searchText";
 
@@ -152,18 +153,40 @@ async function reverseGeocode(
     if (!first) return null;
     let colonia: string | undefined;
     let alcaldia: string | undefined;
+    // Pass 1: scan every component against the list of 16 known alcaldías.
+    // This is the authoritative check — Google's `address_component` types
+    // are inconsistent in CDMX (e.g. "Polanco IV Sección" comes back as
+    // sublocality_level_1 which we used to mis-read as alcaldía).
     for (const c of first.address_components) {
-      if (c.types.includes("sublocality") || c.types.includes("neighborhood")) {
+      const matched = matchKnownAlcaldia(c.long_name);
+      if (matched) {
+        alcaldia = matched;
+        break;
+      }
+    }
+    // Pass 2: colonia — look for sublocality/neighborhood that is NOT itself
+    // an alcaldía name.
+    for (const c of first.address_components) {
+      if (
+        (c.types.includes("sublocality") ||
+          c.types.includes("sublocality_level_1") ||
+          c.types.includes("neighborhood")) &&
+        !matchKnownAlcaldia(c.long_name)
+      ) {
         colonia = colonia ?? c.long_name;
       }
-      if (
-        c.types.includes("administrative_area_level_3") ||
-        c.types.includes("sublocality_level_1")
-      ) {
-        alcaldia = alcaldia ?? c.long_name;
-      }
-      if (c.types.includes("administrative_area_level_1") && !alcaldia) {
-        alcaldia = c.long_name;
+    }
+    // Fallback: if still no alcaldía, try ALL results (not just the first).
+    if (!alcaldia && body.results) {
+      for (const r of body.results) {
+        for (const c of r.address_components) {
+          const matched = matchKnownAlcaldia(c.long_name);
+          if (matched) {
+            alcaldia = matched;
+            break;
+          }
+        }
+        if (alcaldia) break;
       }
     }
     return { formattedAddress: first.formatted_address, colonia, alcaldia };
@@ -191,12 +214,23 @@ async function nominatimSearch(
     }[];
     const hit = body[0];
     if (!hit) return null;
+    const rawAlc =
+      hit.address?.city_district ??
+      hit.address?.municipality ??
+      "";
+    const alcaldia = matchKnownAlcaldia(rawAlc) ?? undefined;
+    // Try more fields if the obvious one didn't match
+    const altAlc =
+      alcaldia ??
+      matchKnownAlcaldia(hit.address?.suburb) ??
+      matchKnownAlcaldia(hit.address?.neighbourhood) ??
+      undefined;
     return {
       lat: Number(hit.lat),
       lng: Number(hit.lon),
       formattedAddress: hit.display_name,
       colonia: hit.address?.suburb ?? hit.address?.neighbourhood,
-      alcaldia: hit.address?.city_district ?? hit.address?.municipality,
+      alcaldia: altAlc,
     };
   });
 }

@@ -134,6 +134,28 @@ export async function computeZoneScore(opts: {
     }),
   ]);
 
+  // Single structured log line — makes Vercel log triage one-grep-away.
+  const logStatus = (name: string, res: PromiseSettledResult<unknown>) => {
+    if (res.status === "fulfilled") {
+      const v = res.value as { records?: unknown[]; length?: number } | unknown[];
+      const len = Array.isArray(v)
+        ? v.length
+        : (v as { records?: unknown[] })?.records?.length ?? "ok";
+      return `${name}=ok(${len})`;
+    }
+    const msg = res.reason instanceof Error ? res.reason.message : String(res.reason);
+    return `${name}=FAIL(${msg.slice(0, 160)})`;
+  };
+  console.log(
+    `[zone-score] alcaldia="${opts.alcaldia ?? "(none)"}" year=${year} zoneAir=${zoneAir} ` +
+      [
+        logStatus("crime", crimeRes),
+        logStatus("denue", denueRes),
+        logStatus("air", airRes),
+        logStatus("transport", transportRes),
+      ].join(" "),
+  );
+
   const subscores: Subscore[] = [];
   const reasons: string[] = [];
   let sourcesAvailable = 0;
@@ -189,11 +211,17 @@ export async function computeZoneScore(opts: {
     // freshness: FGJ acumulado — assume year == current year or prior
     freshnessDays = year === new Date().getFullYear() ? 30 : 365;
   } else {
+    const errMsg =
+      crimeRes.status === "rejected"
+        ? crimeRes.reason instanceof Error
+          ? crimeRes.reason.message
+          : String(crimeRes.reason)
+        : "CKAN devolvió 0 filas";
     subscores.push({
       key: "security",
       label: "Seguridad",
       value: 50,
-      reason: "Sin datos FGJ disponibles en este momento.",
+      reason: `FGJ no disponible: ${errMsg.slice(0, 120)}`,
       signal: null,
       available: false,
     });
@@ -237,54 +265,69 @@ export async function computeZoneScore(opts: {
     if (opts.mode === "business" && bestBusinessType)
       reasons.push(`Nicho con oportunidad: ${bestBusinessType.toLowerCase()}.`);
   } else {
+    const errMsg = denueRes.reason instanceof Error ? denueRes.reason.message : String(denueRes.reason);
+    console.warn("DENUE fetch failed:", errMsg);
     subscores.push({
       key: "commerce",
       label: "Actividad comercial",
       value: 50,
-      reason: "DENUE no disponible (falta INEGI_TOKEN o error de API).",
+      reason: `DENUE no disponible: ${errMsg.slice(0, 120)}`,
       signal: null,
       available: false,
     });
   }
 
   // --- Air ---
+  // New SIMAT normalized shape from airQualityNow:
+  // { zona, Fecha, fecha, pm10, o3, so2, no2, co }
   let pm25: number | null = null;
   if (airRes.status === "fulfilled" && airRes.value.records.length > 0) {
     sourcesAvailable++;
-    const latest = airRes.value.records[0] as Record<string, unknown>;
-    // Try common column names
-    const candidates = ["pm2_5", "pm25", "PM2_5", "PM25", "pm2.5", "valor", "ica"];
-    let found: number | null = null;
-    for (const k of candidates) {
-      if (k in latest) {
-        const n = Number(latest[k]);
-        if (Number.isFinite(n)) {
-          found = n;
-          break;
-        }
-      }
-    }
-    pm25 = found;
-    // Interpretation: if we can't parse PM2.5, use whatever numeric field ends with index
-    const idx = found ?? 60; // neutral-bad fallback
-    const value = clamp(100 - (idx / 100) * 100);
+    const latest = airRes.value.records[0] as {
+      zona?: string;
+      Fecha?: string;
+      fecha?: string;
+      pm10?: number | null;
+      o3?: number | null;
+      so2?: number | null;
+      no2?: number | null;
+      co?: number | null;
+    };
+    const pm10 = typeof latest.pm10 === "number" ? latest.pm10 : null;
+    pm25 = pm10; // reuse the field on the raw payload for UI/backcompat
+    // PM10 scoring: WHO 24h guideline ≤45 µg/m³. CDMX typical 40–100.
+    // Linear map: 30→100, 60→64, 90→28, 120→0.
+    const idx = pm10 ?? 60; // neutral-bad fallback if missing
+    const value = clamp(100 - Math.max(0, idx - 30) * 1.2);
+    const partsMissing: string[] = [];
+    if (pm10 === null) partsMissing.push("PM10");
+    const reason =
+      pm10 !== null
+        ? `Zona ${zoneAir ?? "CENTRO"} (SIMAT): PM10 ${pm10.toFixed(0)} µg/m³ en última lectura.`
+        : `Zona ${zoneAir ?? "CENTRO"} (SIMAT): lectura reciente sin PM10 reportado.`;
     subscores.push({
       key: "air",
       label: "Calidad del aire",
       value,
-      reason: `Zona ${zoneAir ?? "CENTRO"} (SIMAT) — índice reciente ${found !== null ? found.toFixed(1) : "sin parsear"}.`,
-      signal: found,
+      reason,
+      signal: pm10,
       available: true,
     });
     if (value < 45) reasons.push(`Calidad del aire deteriorada en zona ${zoneAir ?? "CENTRO"}.`);
-    const latestFecha = (latest["fecha"] ?? latest["fecha_hora"]) as string | undefined;
+    const latestFecha = (latest.Fecha ?? latest.fecha) as string | undefined;
     if (latestFecha) freshnessDays = daysSince(latestFecha);
   } else {
+    const errMsg =
+      airRes.status === "rejected"
+        ? airRes.reason instanceof Error
+          ? airRes.reason.message
+          : String(airRes.reason)
+        : "SIMAT devolvió 0 filas";
     subscores.push({
       key: "air",
       label: "Calidad del aire",
       value: 50,
-      reason: "Sin dato de calidad del aire reciente.",
+      reason: `SIMAT no disponible: ${errMsg.slice(0, 120)}`,
       signal: null,
       available: false,
     });

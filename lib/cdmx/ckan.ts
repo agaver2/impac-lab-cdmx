@@ -21,8 +21,19 @@ async function ckanGet<T = unknown>(
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
-    const r = await fetch(url, { signal: ctrl.signal });
-    if (!r.ok) throw new Error(`CKAN HTTP ${r.status} on ${path}`);
+    // Some CDN fronts on datos.cdmx.gob.mx reject requests without a UA
+    // (we saw intermittent 403s from serverless runners). Send a polite UA.
+    const r = await fetch(url, {
+      signal: ctrl.signal,
+      headers: {
+        "User-Agent": "zonamatch-cdmx/0.1 (+https://github.com/zonamatch/zonamatch)",
+        Accept: "application/json",
+      },
+    });
+    if (!r.ok) {
+      const snippet = await r.text().then((s) => s.slice(0, 200)).catch(() => "");
+      throw new Error(`CKAN HTTP ${r.status} on ${path}: ${snippet}`);
+    }
     const body = (await r.json()) as { success: boolean; result: T; error?: unknown };
     if (!body.success) throw new Error(`CKAN error on ${path}: ${JSON.stringify(body.error)}`);
     return body.result;
@@ -243,12 +254,59 @@ export async function crimeHotspots(opts: {
   });
 }
 
-export async function airQualityNow(zone?: string, limit = 20) {
-  const where = zone ? `zona="${zone.toUpperCase()}"` : undefined;
-  return queryRecords({
-    datasetId: "aire",
-    where,
-    orderBy: "fecha desc",
-    limit,
-  });
+/**
+ * SIMAT "Índice de la Calidad del aire" uses a wide-table layout: there is
+ * no `zona` column; instead each zone has prefixed pollutant columns like
+ * `Noroeste PM10`, `Centro Ozono`, etc. The date column is `Fecha`
+ * (capital F, timestamp). This helper returns the most recent non-null
+ * PM10 reading for the requested zone, normalized so the caller can treat
+ * it as `{ records: [{ zona, Fecha, pm10, o3, no2, so2, co }] }`.
+ */
+export async function airQualityNow(zone?: string, limit = 1) {
+  // Zone names in SIMAT use title case: "Noroeste", "Centro", etc.
+  const zoneTitle = (zone ?? "CENTRO")
+    .toLowerCase()
+    .replace(/(^|\s)(\p{L})/gu, (_m, p1, p2) => p1 + p2.toUpperCase());
+  const pollutantCols = {
+    o3: `${zoneTitle} Ozono`,
+    so2: `${zoneTitle} dioxido de azufre`,
+    no2: `${zoneTitle} dioxido de nitrogeno`,
+    co: `${zoneTitle} monoxido de carbono`,
+    pm10: `${zoneTitle} PM10`,
+  };
+  const pm10Col = pollutantCols.pm10;
+
+  const rid = await resourceFor(KNOWN_DATASETS.aire);
+  const quoted = (c: string) => `"${c}"`;
+  const cols = Object.values(pollutantCols).map(quoted).join(", ");
+  const sql =
+    `SELECT "Fecha", ${cols} FROM "${rid}" ` +
+    `WHERE ${quoted(pm10Col)} IS NOT NULL ` +
+    `ORDER BY "Fecha" DESC LIMIT ${Math.max(1, Math.min(50, limit))}`;
+
+  try {
+    const res = await ckanGet<{ records: Record<string, unknown>[] }>(
+      "/datastore_search_sql",
+      { sql },
+    );
+    const records = (res.records ?? []).map((r) => ({
+      zona: zoneTitle.toUpperCase(),
+      Fecha: r["Fecha"],
+      fecha: r["Fecha"], // legacy alias
+      pm10: Number(r[pollutantCols.pm10]) || null,
+      o3: Number(r[pollutantCols.o3]) || null,
+      so2: Number(r[pollutantCols.so2]) || null,
+      no2: Number(r[pollutantCols.no2]) || null,
+      co: Number(r[pollutantCols.co]) || null,
+    }));
+    return {
+      total_count: records.length,
+      returned: records.length,
+      records,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn(`[airQualityNow] SQL failed for zone=${zoneTitle}: ${msg.slice(0, 180)}`);
+    throw e;
+  }
 }
