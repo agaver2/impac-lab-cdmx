@@ -74,15 +74,23 @@ export function matchKnownAlcaldia(name: string | undefined): string | null {
   for (const a of KNOWN_ALCALDIAS) {
     if (a === aliased) return a.toUpperCase();
   }
-  // Substring / contains (handles "Alcaldía Miguel Hidalgo" or "Miguel Hidalgo, CDMX")
+  // Forward-contain only: the component text must contain a FULL alcaldía
+  // name. Handles "Alcaldía Miguel Hidalgo" / "Miguel Hidalgo, CDMX".
+  // We intentionally do NOT match the reverse direction (a.includes(aliased))
+  // because short colonias like "Juárez" would otherwise collide with
+  // "Benito Juárez" and swallow an unrelated colonia as an alcaldía.
   for (const a of KNOWN_ALCALDIAS) {
-    if (aliased.includes(a) || a.includes(aliased)) return a.toUpperCase();
+    if (aliased.includes(a)) return a.toUpperCase();
   }
-  // Short-name cases like "Cuajimalpa" without "de Morelos"
+  // Short-name tolerance for the "de" joiner: "Cuajimalpa" ↔ "Cuajimalpa de
+  // Morelos", "Magdalena Contreras" ↔ "La Magdalena Contreras". Require the
+  // truncated component to match the truncated canonical form (both ≥ 2
+  // tokens or both short — never match a single-token colonia like
+  // "Juárez" against "Benito Juárez").
   const truncated = aliased.split(/\s+de\s+/)[0];
   for (const a of KNOWN_ALCALDIAS) {
     const aTrunc = a.split(/\s+de\s+/)[0];
-    if (aTrunc === truncated) return a.toUpperCase();
+    if (aTrunc === truncated && truncated.includes(" ")) return a.toUpperCase();
   }
   return null;
 }
